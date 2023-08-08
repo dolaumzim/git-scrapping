@@ -1,41 +1,41 @@
 import { Repositorio } from 'types/repositorio';
 import { config } from 'dotenv';
-import {emptyRepo} from './newRepo';
-import {emptyBranch} from './newBranch';
-import {emptyCommit} from './newCommit';
-import { buscaRepos, buscaBranches, buscaCommits } from './funcoesBusca'; //funcoes 'get' para requisições
-
+import { emptyRepo, emptyBranch, emptyCommit } from './initializeTypes';
+import { buscaRepos } from './gitLabAPI'; //funcoes 'get' para requisições
+import { paginatedBuscaProjs } from './paginatedBuscaProjs';
+import { paginatedBuscaBranches } from './paginatedBuscaBranches';
+import { paginatedBuscaCommits } from './paginatedBuscaCommits';
 config();
 
 export const buscaRepositorios = async (): Promise<Repositorio[]> => {
-  let repoArray : number[] = [];
-  let resultRepo : Repositorio[] = [];
-  
-  try{
-  const responseRepoArray = await buscaRepos();
-  
-    for (let singleRepo of responseRepoArray.data){
-      (repoArray.push(singleRepo.id));
+  let repoArray: number[] = [];       //array de id's de projetos para que a busca passe por cada projeto
+  let resultRepo: Repositorio[] = []; //array resultante do exercício
+
+  try {
+    const responseRepoArray = await paginatedBuscaProjs();
+
+    for (let singleRepo of responseRepoArray) {
+      repoArray.push(singleRepo.id);  //cria um array de id's de todos os projetos
     }
-  
-    for (let repos of repoArray){
+
+    for (let repos of repoArray) {
       const loopRepo = emptyRepo();
       const loopBranch = emptyBranch();
 
       let [promiseRepo, promiseBranch, promiseCommit] = await Promise.all([
         buscaRepos(repos),
-        buscaBranches(repos),
-        buscaCommits(repos)
-      ])
+        paginatedBuscaBranches(repos),
+        paginatedBuscaCommits(repos),
+      ]);
 
-      for (let data of promiseBranch.data){
-        loopBranch.nome = data.name;
-        for (let data of promiseCommit.data){
-          const loopCommit = emptyCommit();
-
+      for (let data of promiseBranch) {     //esse loop passa pelas informações obtidas através da requisição
+        loopBranch.nome = data.name;        //de um único projeto, assim atribui todos os valores de cada tipo
+        for (let data of promiseCommit) {   //(Repositorio, Branch e Commit), antes de recomeçar os loop para
+          const loopCommit = emptyCommit(); //um novo projeto
+          
           loopCommit.id = data.id;
-          loopCommit.mensagem = data.message;
-          loopCommit.autor = data.author_name;
+          loopCommit.mensagem = data.message; //para evitar erros de mapeamento gerados por diferentes chaves
+          loopCommit.autor = data.author_name; //foi utilizada a atribuição direta das variáveis
           loopCommit.data = data.created_at;
           loopBranch.commits.push(loopCommit);
         }
@@ -45,13 +45,10 @@ export const buscaRepositorios = async (): Promise<Repositorio[]> => {
       loopRepo.branches = [loopBranch];
       resultRepo.push(loopRepo);
     }
-  
-  return resultRepo;
-  }
-  catch (erro){
-    return erro;
+    return resultRepo;
+  } catch (erro) {
+    console.error(erro);  //o erro é retornado diretamente no console, a informação de cada erro pode ser
+    return erro;          //analisada através do terminal
   }
 };
-
-// buscaRepositorios().then(resposta => console.log(JSON.stringify(resposta,null,2)));
 buscaRepositorios().then(console.log);
