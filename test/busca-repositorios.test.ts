@@ -1,5 +1,6 @@
 import { buscaRepositorios } from '../src';
 import { Repositorio } from 'types/repositorio';
+jest.setTimeout(15000);
 
 describe('busca repositorios', () => {
   let repositorios: Repositorio[];
